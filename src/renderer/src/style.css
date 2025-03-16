@@ -1,0 +1,39 @@
+/*******************************************************************************
+ *                                                                             *
+ * Recurrent Styles (style.css)                                                *
+ *                                                                             *
+ ******************************************************************************/
+
+@font-face {
+  font-family: 'Avenir Book';
+  src: url('./assets/fonts/Avenir-Book.ttf');
+}
+
+@font-face {
+  font-family: 'Avenir Medium';
+  src: url('./assets/fonts/Avenir-Medium.ttf');
+}
+
+/* Reset body, html, and div presets. */
+body, html, div {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+}
+
+/* Reset p presets. */
+p {
+  -webkit-margin-before: 0;
+  -webkit-margin-after: 0;
+}
+
+body{
+  background-image: url('assets/images/6.jpg');
+  background-size: cover;
+}
+
+/* Set default font and color. */
+body, button {
+  font-family: 'Avenir Book', sans-serif;
+  color: white;
+}

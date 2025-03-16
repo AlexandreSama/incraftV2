@@ -1,0 +1,132 @@
+import fs from 'fs';
+import axios from 'axios';
+import path from 'path';
+import unzipper from 'unzipper';
+import { app } from 'electron';
+
+/**
+ * Vérifie et crée les dossiers nécessaires
+ */
+export function ensureServerFolders(server) {
+  const appDataPath = app.getPath('appData');
+  const incraftPath = path.join(appDataPath, 'Incraft-Launcher');
+  if (!fs.existsSync(incraftPath)) {
+    fs.mkdirSync(incraftPath);
+  }
+  const serverFolder = path.join(incraftPath, server.name);
+  if (!fs.existsSync(serverFolder)) {
+    fs.mkdirSync(serverFolder);
+  }
+  const modsFolder = path.join(serverFolder, 'mods');
+  if (!fs.existsSync(modsFolder)) {
+    fs.mkdirSync(modsFolder);
+  }
+  const javaFolder = path.join(serverFolder, 'java');
+  if (!fs.existsSync(javaFolder)) {
+    fs.mkdirSync(javaFolder);
+  }
+  return { serverFolder, modsFolder, javaFolder };
+}
+
+/**
+ * Téléchargement simple d'un fichier
+ */
+async function simpleDownload(url, outputPath, mainWindow) {
+  const writer = fs.createWriteStream(outputPath);
+
+  const response = await axios({
+    url,
+    method: 'GET',
+    responseType: 'stream'
+  });
+
+  const totalLength = response.headers['content-length'];
+  let receivedLength = 0;
+
+  response.data.on('data', (chunk) => {
+    receivedLength += chunk.length;
+    const percentage = Math.floor((receivedLength / totalLength) * 100);
+    mainWindow.webContents.send('download-progress', { url, percentage });
+  });
+
+  response.data.pipe(writer);
+
+  return new Promise((resolve, reject) => {
+    writer.on('finish', resolve);
+    writer.on('error', reject);
+  });
+}
+
+/**
+ * Dézippe un fichier zip
+ */
+function unzipAndDelete(zipPath, targetDirectory) {
+  return new Promise((resolve, reject) => {
+    fs.createReadStream(zipPath)
+      .pipe(unzipper.Extract({ path: targetDirectory }))
+      .on('close', () => {
+        fs.unlink(zipPath, (err) => {
+          if (err) {
+            console.error("Erreur suppression zip :", err);
+            reject(err);
+          } else {
+            resolve();
+          }
+        });
+      })
+      .on('error', (err) => {
+        console.error("Erreur dézippage :", err);
+        reject(err);
+      });
+  });
+}
+
+/**
+ * Fonction principale de téléchargement
+ */
+export async function downloadFiles(server, mainWindow) {
+  const folders = ensureServerFolders(server);
+  const filesToDownload = [];
+
+  if (server.serverJarUrl) {
+    filesToDownload.push({ url: server.serverJarUrl, label: "serverJarUrl", directory: folders.serverFolder });
+  }
+  if (server.javaZipUrl) {
+    filesToDownload.push({ url: server.javaZipUrl, label: "javaZipUrl", directory: folders.serverFolder });
+  }
+  if (server.mods && server.mods.length > 0) {
+    server.mods.forEach(modUrl =>
+      filesToDownload.push({ url: modUrl, label: "mod", directory: folders.modsFolder })
+    );
+  }
+
+  for (const file of filesToDownload) {
+    const fileName = path.basename(new URL(file.url).pathname);
+    const filePath = path.join(file.directory, fileName);
+
+    if (fs.existsSync(filePath) && file.label !== "javaZipUrl") {
+      console.log(`Le fichier ${fileName} existe déjà, téléchargement ignoré.`);
+      mainWindow.webContents.send('download-status', { url: file.url, status: 'skipped' });
+      continue;
+    }
+
+    if (file.label === "javaZipUrl" && fs.readdirSync(folders.javaFolder).length > 0) {
+      console.log(`Java déjà dézippé, téléchargement ignoré.`);
+      mainWindow.webContents.send('download-status', { url: file.url, status: 'skipped' });
+      continue;
+    }
+
+    try {
+      await simpleDownload(file.url, filePath, mainWindow);
+      mainWindow.webContents.send('download-status', { url: file.url, status: 'finished' });
+
+      if (file.label === "javaZipUrl") {
+        await unzipAndDelete(filePath, folders.javaFolder);
+        console.log(`Dézippage terminé pour ${fileName}`);
+      }
+    } catch (err) {
+      console.error(`Erreur téléchargement ${fileName}:`, err);
+      mainWindow.webContents.send('download-status', { url: file.url, status: 'error', error: err.message });
+    }
+  }
+}
