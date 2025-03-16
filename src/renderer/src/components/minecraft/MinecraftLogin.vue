@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from 'vue'
+import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../../stores/authStore'
 
@@ -13,7 +13,7 @@ const password = ref('')
 const errorMessage = ref('')
 
 // 🔹 Mode test : permet de tester sans API
-const testMode = true
+const testMode = false
 
 function handleLogin() {
   if (!email.value || !password.value) {
@@ -26,7 +26,6 @@ function handleLogin() {
     if (email.value === 'test' && password.value === 'test') {
       store.setCredentials(email.value, password.value)
       store.setProfile({ username: 'Steve' })
-
       console.log('🔹 Mode test : Connexion réussie !')
       router.push('/minecraft-home')
     } else {
@@ -41,6 +40,21 @@ function handleLogin() {
 function returnToAccueil() {
   router.push('/')
 }
+
+// Dès que le composant est monté, on écoute la réponse de connexion
+onMounted(() => {
+  window.electronAPI.onLoginResponse((response) => {
+    console.log('Réponse de connexion reçue :', response)
+    if (response.status === 'success') {
+      // Stocke éventuellement les infos et redirige vers la page principale du launcher
+      store.setCredentials(email.value, password.value)
+      store.setProfile(response.profile)
+      router.push('/minecraft-home')
+    } else {
+      errorMessage.value = response.message || 'Erreur de connexion'
+    }
+  })
+})
 </script>
 
 <template>

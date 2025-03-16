@@ -21,7 +21,10 @@
     "@electron-toolkit/preload": "^3.0.1",
     "@electron-toolkit/utils": "^4.0.0",
     "axios": "^1.8.3",
+    "electron-store": "^10.0.1",
     "electron-updater": "^6.3.9",
+    "minecraft-launcher-core": "^3.18.2",
+    "msmc": "^5.0.5",
     "pinia": "^3.0.1",
     "unzipper": "^0.12.3",
     "vue-router": "^4.5.0"

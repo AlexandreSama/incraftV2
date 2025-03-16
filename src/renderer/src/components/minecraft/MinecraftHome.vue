@@ -72,38 +72,38 @@ import { onMounted, ref, computed } from 'vue'
 const servers = ref([])
 const selectedServer = ref(null)
 const progress = ref(0)
-const downloadComplete = ref(false) // Variable indiquant que tous les téléchargements sont finis
+const downloadComplete = ref(false)
 const isSettingsModalOpen = ref(false)
 const ram = ref(8)
 const ramOptions = Array.from({ length: 9 }, (_, i) => i + 8)
 
-// La propriété calculée affiche le pourcentage tant que downloadComplete est false,
-// et le message final lorsque downloadComplete est true.
-const progressMessage = computed(() => {
-  return downloadComplete.value
-    ? 'Téléchargement terminé ! Lancement du jeu...'
-    : progress.value + '%'
-})
+const progressMessage = computed(() =>
+  downloadComplete.value ? 'Téléchargement terminé ! Lancement du jeu...' : progress.value + '%'
+)
 
-const selectServer = (server) => {
+const selectServer = async (server) => {
   selectedServer.value = server
+  if (server && server.id) {
+    const savedRam = await window.electronAPI.getRam(server.id)
+    ram.value = savedRam !== undefined ? savedRam : 8
+  }
 }
 
 const joinServer = async (server) => {
   if (!server) return
   console.log(`Lancement du téléchargement pour ${server.name}`)
-  // Réinitialiser l'état de la progression et du flag
   progress.value = 0
   downloadComplete.value = false
+
   try {
+    // On fait une copie simple de l'objet pour s'assurer qu'il est clonable
     const serverData = JSON.parse(JSON.stringify(server))
-    const result = await window.electronAPI.startDownload(serverData)
-    if (result.success) {
-      downloadComplete.value = true
-      console.log('Tous les fichiers ont été téléchargés !')
-    } else {
-      console.error('Erreur lors du téléchargement : ' + result.error)
-    }
+    await window.electronAPI.startDownload(serverData)
+    // if (result.success) {
+    //   downloadComplete.value = true
+    // } else {
+    //   console.error('Erreur lors du téléchargement : ' + result.error)
+    // }
   } catch (error) {
     console.error('Erreur lors du téléchargement', error)
   }
@@ -114,8 +114,11 @@ const openSettings = (server) => {
   isSettingsModalOpen.value = true
 }
 
-const closeSettings = () => {
+const closeSettings = async () => {
   isSettingsModalOpen.value = false
+  if (selectedServer.value && selectedServer.value.id) {
+    await window.electronAPI.setRam(selectedServer.value.id, ram.value)
+  }
 }
 
 const openLogs = () => {
@@ -133,6 +136,10 @@ async function fetchServers() {
       servers.value = await response.json()
       if (servers.value.length > 0) {
         selectedServer.value = servers.value[0]
+        if (selectedServer.value.id) {
+          const savedRam = await window.electronAPI.getRam(selectedServer.value.id)
+          ram.value = savedRam !== undefined ? savedRam : 8
+        }
       }
     } else {
       console.error('Erreur lors de la récupération des serveurs.')
@@ -144,7 +151,9 @@ async function fetchServers() {
 
 onMounted(() => {
   fetchServers()
+  // Utilise l'API exposée pour mettre à jour la barre de téléchargement
   window.electronAPI.onDownloadProgress((data) => {
+    // On s'attend ici à recevoir un objet contenant une propriété 'percentage'
     progress.value = data.percentage
   })
 })
@@ -289,11 +298,6 @@ onMounted(() => {
   background: #444;
   transform: scale(1.05);
   box-shadow: 3px 3px 0 #000;
-}
-
-.server-tabs li.active {
-  background: #3b82f6;
-  border-color: #ffcc00;
 }
 
 .server-logo {

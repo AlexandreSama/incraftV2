@@ -2,10 +2,15 @@ import { app, shell, BrowserWindow, ipcMain } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import axios from 'axios'
-import { downloadFiles } from './downloader'
+import { downloadFiles } from './downloader.js'
+import { ILauncherOptions } from 'minecraft-launcher-core'
+const { Client } = require('minecraft-launcher-core')
+const launcher = new Client()
 
 const isDev = is.dev
 let mainWindow
+let accessToken
+let username
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -38,15 +43,15 @@ function createWindow() {
 
   // Charge le renderer en fonction du mode (dev ou prod)
   if (isDev && process.env['ELECTRON_RENDERER_URL']) {
-    mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL'])
+    mainWindow
+      .loadURL(process.env['ELECTRON_RENDERER_URL'])
       .catch((err) => console.error("Erreur lors du chargement de l'URL :", err))
   } else {
-    // En production, on charge le fichier index.html du renderer
-    mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
+    mainWindow
+      .loadFile(join(__dirname, '../renderer/index.html'))
       .catch((err) => console.error('Erreur lors du chargement du fichier index.html :', err))
   }
 
-  // Écoute des erreurs de chargement
   mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
     console.error(`Erreur de chargement : ${errorCode} - ${errorDescription}`)
   })
@@ -56,9 +61,7 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
-  // Configure l'ID de l'application (Windows)
   electronApp.setAppUserModelId('com.electron')
-  // Active la surveillance des raccourcis clavier dans chaque fenêtre
   app.on('browser-window-created', (_, window) => {
     optimizer.watchWindowShortcuts(window)
   })
@@ -92,9 +95,18 @@ ipcMain.on('close-window', (event) => {
 ipcMain.on('minecraft-login', async (event, credentials) => {
   console.info('🔄 Envoi des identifiants Minecraft à l’API Express:', credentials)
   try {
+    // const response = await axios.post(
+    //   'https://incraft-api.kashir.fr/auth/minecraft-login',
+    //   credentials,
+    //   {
+    //     headers: { 'Content-Type': 'application/json' }
+    //   }
+    // )
     const response = await axios.post('http://localhost:3000/auth/minecraft-login', credentials, {
       headers: { 'Content-Type': 'application/json' }
     })
+    accessToken = response.data.access_token
+    username = response.data.username
     event.reply('minecraft-login-response', response.data)
   } catch (error) {
     console.error('❌ Erreur lors de l’appel à l’API Express:', error.message)
@@ -108,15 +120,107 @@ ipcMain.on('minecraft-login', async (event, credentials) => {
   }
 })
 
-// --- IPC : Téléchargement ---
-ipcMain.handle('start-download', async (event, server) => {
-  try {
-    await downloadFiles(server, mainWindow)
-    return { success: true }
-  } catch (error) {
-    console.error('Erreur dans le téléchargement :', error)
-    return { success: false, error: error.message }
-  }
+// --- IPC : Configuration RAM par serveur ---
+ipcMain.handle('get-ram', async (event, serverId) => {
+  const { default: Store } = await import('electron-store')
+  const store = new Store()
+  // Retourne 8 si aucune valeur n'est trouvée
+  return store.get(`ram_${serverId}`, 8)
 })
 
-// Optionnel : Ajoutez ici d'autres IPC spécifiques si besoin...
+ipcMain.handle('set-ram', async (event, serverId, value) => {
+  const { default: Store } = await import('electron-store')
+  const store = new Store()
+  store.set(`ram_${serverId}`, value)
+  return true
+})
+
+// --- IPC : Lancement du jeu ---
+ipcMain.handle('start-download', async (event, server) => {
+  await launchGame(event, server.id, server.name, server.serverJar)
+})
+
+async function launchGame(event, serverId, serverName, serverJar) {
+  try {
+    // D'abord, télécharge les fichiers nécessaires pour le serveur
+    await downloadFiles(serverName, mainWindow)
+
+    // Définir ici les chemins (adapter selon ta configuration)
+    const appDataPath = app.getPath('appData')
+    const baseFolder = join(appDataPath, 'Incraft-Launcher')
+    // Pour ce serveur, les fichiers se trouvent dans un sous-dossier portant son nom
+    const rootFolder = join(baseFolder, serverName)
+    // On suppose que le dossier Java est commun à tous les serveurs
+    const javaFolder = join(baseFolder, 'java')
+    // Dossier contenant le modLoader, sur tout les serveurs
+    const modLoaderFolder = rootFolder
+
+    const { default: Store } = await import('electron-store')
+    const store = new Store()
+    const ramUsage = store.get(`ram_${serverId}`, '8') // Valeur par défaut : '8'
+
+    const opts = {
+      clientPackage: null,
+      authorization: {
+        access_token: accessToken, // Récupéré lors de l'auth via IPC
+        client_token: '', // Tu peux générer un token ici si nécessaire
+        uuid: '', // Remplir si tu disposes de l'UUID
+        name: username, // Remplir si tu disposes du nom du joueur
+        meta: {
+          type: 'msa' // Microsoft Account
+        }
+      },
+      root: rootFolder,
+      forge: join(modLoaderFolder, serverJar),
+      javaPath: join(javaFolder, 'bin', 'java.exe'),
+      version: {
+        number: '1.21.1',
+        type: 'release'
+      },
+      memory: {
+        max: `${ramUsage}G`,
+        min: '8G'
+      }
+    }
+
+    // Lance Minecraft via minecraft-launcher-core
+    launcher
+      .launch(opts)
+      .then(() => {
+        launcher.on('close', (code) => {
+          const errorMessage =
+            code === 1 ? 'Fermé par l’utilisateur' : 'Le processus Minecraft a planté'
+          mainWindow.show()
+          event.sender.send(
+            'stoppingGame',
+            `Le processus Minecraft s'est arrêté avec le code: ${code}. ${errorMessage}`
+          )
+        })
+
+        launcher.on('debug', (message) => {
+          console.log(`["Minecraft-Debug"] ${message}`)
+        })
+
+        launcher.on('progress', (progress) => {
+          console.log(progress)
+          event.sender.send('dataDownload', {
+            type: progress.type,
+            task: progress.task,
+            total: progress.total
+          })
+        })
+
+        launcher.once('data', () => {
+          mainWindow.hide()
+          event.sender.send('LaunchingGame')
+        })
+      })
+      .catch((launchError) => {
+        console.error('Erreur lors du lancement du jeu:', launchError)
+        event.sender.send('gameError', `Erreur de lancement du jeu: ${launchError.message}`)
+      })
+  } catch (error) {
+    console.error('Error launching game', error)
+    event.sender.send('gameError', `Erreur de lancement du jeu: ${error.message}`)
+  }
+}

@@ -1,4 +1,5 @@
 const { contextBridge, ipcRenderer } = require('electron')
+
 console.log('preload.js chargé')
 
 contextBridge.exposeInMainWorld('electronAPI', {
@@ -33,5 +34,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('download-status', (event, data) => {
       callback(data)
     })
-  }
+  },
+  onDataDownload: (callback) => {
+    ipcRenderer.on('dataDownload', (event, data) => {
+      callback(data)
+    })
+  },
+  // Fonction pour récupérer la RAM pour un serveur donné (clé "ram_<serverId>")
+  getRam: (serverId) => ipcRenderer.invoke('get-ram', serverId),
+  setRam: (serverId, value) => ipcRenderer.invoke('set-ram', serverId, value)
 })
