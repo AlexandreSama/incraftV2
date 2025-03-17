@@ -4,6 +4,9 @@ import path from 'path'
 import unzipper from 'unzipper'
 import { app } from 'electron'
 
+let currentNumberMod = 0
+let modsToDownload = 0
+
 /**
  * Vérifie et crée les dossiers nécessaires
  */
@@ -104,9 +107,14 @@ export async function downloadFiles(server, mainWindow) {
     })
   }
   if (server.mods && server.mods.length > 0) {
+    modsToDownload = server.mods.length
+    currentNumberMod = 0
     server.mods.forEach((modUrl) =>
       filesToDownload.push({ url: modUrl, label: 'mod', directory: folders.modsFolder })
     )
+  } else {
+    modsToDownload = 0
+    currentNumberMod = 0
   }
 
   for (const file of filesToDownload) {
@@ -116,6 +124,14 @@ export async function downloadFiles(server, mainWindow) {
     if (fs.existsSync(filePath) && file.label !== 'javaZipUrl') {
       console.log(`Le fichier ${fileName} existe déjà, téléchargement ignoré.`)
       mainWindow.webContents.send('download-status', { url: file.url, status: 'skipped' })
+      // Si c'est un mod, on incrémente quand même le compteur et on envoie la progression
+      if (file.label === 'mod') {
+        currentNumberMod++
+        mainWindow.webContents.send('mods-progress', {
+          current: currentNumberMod,
+          total: modsToDownload
+        })
+      }
       continue
     }
 
@@ -132,6 +148,13 @@ export async function downloadFiles(server, mainWindow) {
       if (file.label === 'javaZipUrl') {
         await unzipAndDelete(filePath, folders.javaFolder)
         console.log(`Dézippage terminé pour ${fileName}`)
+      }
+      if (file.label === 'mod') {
+        currentNumberMod++
+        mainWindow.webContents.send('mods-progress', {
+          current: currentNumberMod,
+          total: modsToDownload
+        })
       }
     } catch (err) {
       console.error(`Erreur téléchargement ${fileName}:`, err)

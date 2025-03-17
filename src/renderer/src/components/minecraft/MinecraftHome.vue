@@ -67,7 +67,7 @@
 </template>
 
 <script setup>
-import { onMounted, ref, computed } from 'vue'
+import { onMounted, ref } from 'vue'
 
 const servers = ref([])
 const selectedServer = ref(null)
@@ -77,10 +77,28 @@ const isSettingsModalOpen = ref(false)
 const ram = ref(8)
 const ramOptions = Array.from({ length: 9 }, (_, i) => i + 8)
 
-const progressMessage = computed(() =>
-  downloadComplete.value ? 'Téléchargement terminé ! Lancement du jeu...' : progress.value + '%'
-)
+// progressMessage affichera le pourcentage en cours,
+// puis sera remplacé par le message "Téléchargement terminé ! Lancement du jeu..."
+// ou par un message personnalisé indiquant le nombre de mods téléchargés.
+const progressMessage = ref(progress.value + '%')
 
+// Lorsqu'un événement 'dataDownload' est reçu, on met à jour le progressMessage
+// avec un message du type "Téléchargement de X <type> / Y"
+window.electronAPI.onDataDownload((data) => {
+  // data devrait contenir les propriétés { current, total, type }
+  progressMessage.value = `Téléchargement de ${data.current} ${data.type} / ${data.total}`
+})
+
+// Lorsqu'un événement 'download-progress' est reçu, on met à jour progress
+window.electronAPI.onDownloadProgress((data) => {
+  progress.value = data.percentage
+  // Si aucun message de type "dataDownload" n'est envoyé, on affiche le pourcentage
+  if (progress.value < 100) {
+    progressMessage.value = progress.value + '%'
+  }
+})
+
+// Fonction asynchrone pour sélectionner un serveur et charger la RAM sauvegardée
 const selectServer = async (server) => {
   selectedServer.value = server
   if (server && server.id) {
@@ -89,26 +107,25 @@ const selectServer = async (server) => {
   }
 }
 
+// Fonction joinServer qui lance le téléchargement
 const joinServer = async (server) => {
   if (!server) return
   console.log(`Lancement du téléchargement pour ${server.name}`)
   progress.value = 0
   downloadComplete.value = false
-
   try {
-    // On fait une copie simple de l'objet pour s'assurer qu'il est clonable
     const serverData = JSON.parse(JSON.stringify(server))
     await window.electronAPI.startDownload(serverData)
-    // if (result.success) {
-    //   downloadComplete.value = true
-    // } else {
-    //   console.error('Erreur lors du téléchargement : ' + result.error)
-    // }
+    downloadComplete.value = true
+    // Lorsque tout est terminé, on met à jour progressMessage
+    progressMessage.value = 'Téléchargement terminé ! Lancement du jeu...'
+    console.log('Tous les fichiers ont été téléchargés !')
   } catch (error) {
     console.error('Erreur lors du téléchargement', error)
   }
 }
 
+// Ouverture et fermeture de la modal des paramètres
 const openSettings = (server) => {
   console.log(`Accès aux paramètres du serveur : ${server.name}`)
   isSettingsModalOpen.value = true
@@ -151,16 +168,6 @@ async function fetchServers() {
 
 onMounted(() => {
   fetchServers()
-  // Utilise l'API exposée pour mettre à jour la barre de téléchargement
-  window.electronAPI.onDownloadProgress((data) => {
-    // On s'attend ici à recevoir un objet contenant une propriété 'percentage'
-    progress.value = data.percentage
-  })
-
-  window.electronAPI.onDataDownload((data) => {
-    const percentage = (data.current / data.total) * 100
-    progress.value = Number(percentage.toFixed(2))
-  })
 })
 </script>
 

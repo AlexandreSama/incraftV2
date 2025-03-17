@@ -40,7 +40,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
       callback(data)
     })
   },
-  // Fonction pour récupérer la RAM pour un serveur donné (clé "ram_<serverId>")
+  // Gestion de la configuration RAM par serveur via IPC
   getRam: (serverId) => ipcRenderer.invoke('get-ram', serverId),
   setRam: (serverId, value) => ipcRenderer.invoke('set-ram', serverId, value)
 })
