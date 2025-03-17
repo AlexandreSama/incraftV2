@@ -26,6 +26,7 @@
     "minecraft-launcher-core": "^3.18.2",
     "msmc": "^5.0.5",
     "pinia": "^3.0.1",
+    "tomate-loaders": "^2.0.2",
     "unzipper": "^0.12.3",
     "vue-router": "^4.5.0"
   },

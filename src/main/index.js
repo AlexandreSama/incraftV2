@@ -3,7 +3,7 @@ import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import axios from 'axios'
 import { downloadFiles } from './downloader.js'
-import { ILauncherOptions } from 'minecraft-launcher-core'
+
 const { Client } = require('minecraft-launcher-core')
 const launcher = new Client()
 
@@ -95,16 +95,16 @@ ipcMain.on('close-window', (event) => {
 ipcMain.on('minecraft-login', async (event, credentials) => {
   console.info('🔄 Envoi des identifiants Minecraft à l’API Express:', credentials)
   try {
-    // const response = await axios.post(
-    //   'https://incraft-api.kashir.fr/auth/minecraft-login',
-    //   credentials,
-    //   {
-    //     headers: { 'Content-Type': 'application/json' }
-    //   }
-    // )
-    const response = await axios.post('http://localhost:3000/auth/minecraft-login', credentials, {
-      headers: { 'Content-Type': 'application/json' }
-    })
+    const response = await axios.post(
+      'https://incraft-api.kashir.fr/auth/minecraft-login',
+      credentials,
+      {
+        headers: { 'Content-Type': 'application/json' }
+      }
+    )
+    // const response = await axios.post('http://localhost:3000/auth/minecraft-login', credentials, {
+    //   headers: { 'Content-Type': 'application/json' }
+    // })
     accessToken = response.data.access_token
     username = response.data.username
     event.reply('minecraft-login-response', response.data)
@@ -137,27 +137,30 @@ ipcMain.handle('set-ram', async (event, serverId, value) => {
 
 // --- IPC : Lancement du jeu ---
 ipcMain.handle('start-download', async (event, server) => {
-  await launchGame(event, server.id, server.name, server.serverJar)
+  await launchGame(event, server, server.id, server.name, server.serverJar)
 })
 
-async function launchGame(event, serverId, serverName, serverJar) {
+async function launchGame(event, server, serverId, serverName, serverJar) {
   try {
     // D'abord, télécharge les fichiers nécessaires pour le serveur
-    await downloadFiles(serverName, mainWindow)
+    await downloadFiles(server, mainWindow)
 
+    console.log('lancement de MC')
     // Définir ici les chemins (adapter selon ta configuration)
     const appDataPath = app.getPath('appData')
     const baseFolder = join(appDataPath, 'Incraft-Launcher')
     // Pour ce serveur, les fichiers se trouvent dans un sous-dossier portant son nom
     const rootFolder = join(baseFolder, serverName)
     // On suppose que le dossier Java est commun à tous les serveurs
-    const javaFolder = join(baseFolder, 'java')
+    const javaFolder = join(rootFolder, 'java')
+    console.log(javaFolder)
     // Dossier contenant le modLoader, sur tout les serveurs
     const modLoaderFolder = rootFolder
 
     const { default: Store } = await import('electron-store')
     const store = new Store()
     const ramUsage = store.get(`ram_${serverId}`, '8') // Valeur par défaut : '8'
+    console.log(ramUsage)
 
     const opts = {
       clientPackage: null,
@@ -181,44 +184,46 @@ async function launchGame(event, serverId, serverName, serverJar) {
         max: `${ramUsage}G`,
         min: '8G'
       }
+      // overrides: {
+      //   fw: {
+      //     version: '1.6.0'
+      //   }
+      // }
     }
 
     // Lance Minecraft via minecraft-launcher-core
-    launcher
-      .launch(opts)
-      .then(() => {
-        launcher.on('close', (code) => {
-          const errorMessage =
-            code === 1 ? 'Fermé par l’utilisateur' : 'Le processus Minecraft a planté'
-          mainWindow.show()
-          event.sender.send(
-            'stoppingGame',
-            `Le processus Minecraft s'est arrêté avec le code: ${code}. ${errorMessage}`
-          )
-        })
+    launcher.launch(opts)
+    let i = 0
+    launcher.on('close', (code) => {
+      const errorMessage =
+        code === 1 ? 'Fermé par l’utilisateur' : 'Le processus Minecraft a planté'
+      mainWindow.show()
+      event.sender.send(
+        'stoppingGame',
+        `Le processus Minecraft s'est arrêté avec le code: ${code}. ${errorMessage}`
+      )
+    })
 
-        launcher.on('debug', (message) => {
-          console.log(`["Minecraft-Debug"] ${message}`)
-        })
+    launcher.on('debug', (message) => {
+      console.log(`["Minecraft-Debug"] ${message}`)
+    })
 
-        launcher.on('progress', (progress) => {
-          console.log(progress)
-          event.sender.send('dataDownload', {
-            type: progress.type,
-            task: progress.task,
-            total: progress.total
-          })
-        })
+    launcher.on('progress', (progress) => {
+      console.log(progress)
 
-        launcher.once('data', () => {
-          mainWindow.hide()
-          event.sender.send('LaunchingGame')
-        })
+      i++
+      event.sender.send('dataDownload', {
+        type: progress.type,
+        task: progress.task,
+        total: progress.total,
+        current: i
       })
-      .catch((launchError) => {
-        console.error('Erreur lors du lancement du jeu:', launchError)
-        event.sender.send('gameError', `Erreur de lancement du jeu: ${launchError.message}`)
-      })
+    })
+
+    launcher.once('data', () => {
+      mainWindow.hide()
+      event.sender.send('LaunchingGame')
+    })
   } catch (error) {
     console.error('Error launching game', error)
     event.sender.send('gameError', `Erreur de lancement du jeu: ${error.message}`)

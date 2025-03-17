@@ -156,6 +156,11 @@ onMounted(() => {
     // On s'attend ici à recevoir un objet contenant une propriété 'percentage'
     progress.value = data.percentage
   })
+
+  window.electronAPI.onDataDownload((data) => {
+    const percentage = (data.current / data.total) * 100
+    progress.value = Number(percentage.toFixed(2))
+  })
 })
 </script>
 
