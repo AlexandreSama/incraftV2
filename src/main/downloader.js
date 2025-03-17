@@ -1,8 +1,8 @@
 import fs from 'fs'
-import axios from 'axios'
 import path from 'path'
 import unzipper from 'unzipper'
 import { app } from 'electron'
+import Downloader from 'nodejs-file-downloader'
 
 let currentNumberMod = 0
 let modsToDownload = 0
@@ -33,36 +33,32 @@ export function ensureServerFolders(server) {
 }
 
 /**
- * Téléchargement simple d'un fichier
+ * Téléchargement simple d'un fichier avec nodejs-file-downloader
  */
 async function simpleDownload(url, outputPath, mainWindow) {
-  const writer = fs.createWriteStream(outputPath)
+  const fileName = path.basename(new URL(url).pathname)
+  const directory = path.dirname(outputPath)
 
-  const response = await axios({
+  const downloader = new Downloader({
     url,
-    method: 'GET',
-    responseType: 'stream'
+    directory,
+    fileName,
+    onProgress: (percentage) => {
+      // La valeur retournée est un pourcentage ; on l'arrondit et l'envoie à la fenêtre principale.
+      mainWindow.webContents.send('download-progress', { url, percentage: Math.floor(percentage) })
+    }
   })
 
-  const totalLength = response.headers['content-length']
-  let receivedLength = 0
-
-  response.data.on('data', (chunk) => {
-    receivedLength += chunk.length
-    const percentage = Math.floor((receivedLength / totalLength) * 100)
-    mainWindow.webContents.send('download-progress', { url, percentage })
-  })
-
-  response.data.pipe(writer)
-
-  return new Promise((resolve, reject) => {
-    writer.on('finish', resolve)
-    writer.on('error', reject)
-  })
+  try {
+    // Le téléchargement renvoie un objet contenant filePath.
+    await downloader.download()
+  } catch (error) {
+    throw error
+  }
 }
 
 /**
- * Dézippe un fichier zip
+ * Dézippe un fichier zip et supprime l'archive
  */
 function unzipAndDelete(zipPath, targetDirectory) {
   return new Promise((resolve, reject) => {

@@ -11,6 +11,7 @@ const isDev = is.dev
 let mainWindow
 let accessToken
 let username
+let uuid
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -105,8 +106,10 @@ ipcMain.on('minecraft-login', async (event, credentials) => {
     // const response = await axios.post('http://localhost:3000/auth/minecraft-login', credentials, {
     //   headers: { 'Content-Type': 'application/json' }
     // })
+    console.log(response.data)
     accessToken = response.data.access_token
-    username = response.data.username
+    username = response.data.profile.name
+    uuid = response.data.profile.uuid
     event.reply('minecraft-login-response', response.data)
   } catch (error) {
     console.error('❌ Erreur lors de l’appel à l’API Express:', error.message)
@@ -167,7 +170,7 @@ async function launchGame(event, server, serverId, serverName, serverJar) {
       authorization: {
         access_token: accessToken, // Récupéré lors de l'auth via IPC
         client_token: '', // Tu peux générer un token ici si nécessaire
-        uuid: '', // Remplir si tu disposes de l'UUID
+        uuid: uuid, // Remplir si tu disposes de l'UUID
         name: username, // Remplir si tu disposes du nom du joueur
         meta: {
           type: 'msa' // Microsoft Account
@@ -178,7 +181,8 @@ async function launchGame(event, server, serverId, serverName, serverJar) {
       javaPath: join(javaFolder, 'bin', 'java.exe'),
       version: {
         number: '1.21.1',
-        type: 'release'
+        type: 'release',
+        custom: 'neoforge-1.21.1'
       },
       memory: {
         max: `${ramUsage}G`,

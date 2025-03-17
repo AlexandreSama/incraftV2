@@ -11,8 +11,12 @@
 
         <!-- Groupe de boutons -->
         <div class="button-group">
-          <button class="btn-join" @click="joinServer(selectedServer)">Lancer</button>
-          <button class="btn-settings" @click="openSettings(selectedServer)">Paramètre</button>
+          <button id="join-server" class="btn-join" @click="joinServer(selectedServer)">
+            Lancer
+          </button>
+          <button id="param-server" class="btn-settings" @click="openSettings(selectedServer)">
+            Paramètre
+          </button>
         </div>
 
         <!-- Barre de téléchargement -->
@@ -35,6 +39,7 @@
           v-for="(server, index) in servers"
           :key="index"
           :class="{ active: selectedServer === server }"
+          class="server"
           @click="selectServer(server)"
         >
           <img :src="server.iconUrl" alt="Logo" class="server-logo" />
@@ -85,8 +90,9 @@ const progressMessage = ref(progress.value + '%')
 // Lorsqu'un événement 'dataDownload' est reçu, on met à jour le progressMessage
 // avec un message du type "Téléchargement de X <type> / Y"
 window.electronAPI.onDataDownload((data) => {
+  progress.value = (data.current / data.total) * 100
   // data devrait contenir les propriétés { current, total, type }
-  progressMessage.value = `Téléchargement de ${data.current} ${data.type} / ${data.total}`
+  progressMessage.value = `Téléchargement de ${data.current} / ${data.total} ${data.type}`
 })
 
 // Lorsqu'un événement 'download-progress' est reçu, on met à jour progress
@@ -96,6 +102,16 @@ window.electronAPI.onDownloadProgress((data) => {
   if (progress.value < 100) {
     progressMessage.value = progress.value + '%'
   }
+})
+
+window.electronAPI.onGameStopped(() => {
+  document.getElementById('join-server').style.pointerEvents = 'auto'
+  document.getElementById('param-server').style.pointerEvents = 'auto'
+  document.querySelectorAll('.server').forEach((e) => {
+    e.style.pointerEvents = 'auto'
+  })
+  progressMessage.value = ''
+  progress.value = 0
 })
 
 // Fonction asynchrone pour sélectionner un serveur et charger la RAM sauvegardée
@@ -120,8 +136,18 @@ const joinServer = async (server) => {
     // Lorsque tout est terminé, on met à jour progressMessage
     progressMessage.value = 'Téléchargement terminé ! Lancement du jeu...'
     console.log('Tous les fichiers ont été téléchargés !')
+    document.getElementById('join-server').style.pointerEvents = 'none'
+    document.getElementById('param-server').style.pointerEvents = 'none'
+    document.querySelectorAll('.server').forEach((e) => {
+      e.style.pointerEvents = 'none'
+    })
   } catch (error) {
     console.error('Erreur lors du téléchargement', error)
+    document.getElementById('join-server').style.pointerEvents = 'auto'
+    document.getElementById('param-server').style.pointerEvents = 'auto'
+    document.querySelectorAll('.server').forEach((e) => {
+      e.style.pointerEvents = 'auto'
+    })
   }
 }
 
