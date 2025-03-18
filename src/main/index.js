@@ -117,7 +117,7 @@ ipcMain.on('minecraft-login', async (event, credentials) => {
     if (error.response && error.response.data) details = error.response.data
     event.reply('minecraft-login-response', {
       status: 'error',
-      message: 'Échec de l’authentification Minecraft via API.',
+      message: 'Échec de l’authentification Minecraft via API. Vérifier votre mot de passe, votre email et que l\'authentification a double facteur soit désactivé',
       details
     })
   }

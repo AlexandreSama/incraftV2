@@ -46,12 +46,12 @@ onMounted(() => {
   window.electronAPI.onLoginResponse((response) => {
     console.log('Réponse de connexion reçue :', response)
     if (response.status === 'success') {
-      // Stocke éventuellement les infos et redirige vers la page principale du launcher
       store.setCredentials(email.value, password.value)
       store.setProfile(response.profile)
       router.push('/minecraft-home')
     } else {
       errorMessage.value = response.message || 'Erreur de connexion'
+      // L'alerte s'affichera automatiquement grâce au v-if dans le template
     }
   })
 })
@@ -110,12 +110,19 @@ onMounted(() => {
           href="https://account.live.com/ResetPassword.aspx"
           class="lost-password-link"
           target="_blank"
-          >J'ai perdu mon mot de passe</a
+        >J'ai perdu mon mot de passe</a
         >
       </form>
-      <div id="minecraftAlertBox" class="minecraft-alert-box">
-        <p id="minecraftAlertMessage">Erreur : Nom d'utilisateur ou mot de passe incorrect</p>
-        <button id="minecraftAlertCloseBtn" class="minecraft-alert-close-btn">&times;</button>
+      <!-- Alerte de connexion en erreur : affichée si errorMessage contient une valeur -->
+      <div v-if="errorMessage" id="minecraftAlertBox" class="minecraft-alert-box">
+        <p id="minecraftAlertMessage">{{ errorMessage }}</p>
+        <button
+          id="minecraftAlertCloseBtn"
+          class="minecraft-alert-close-btn"
+          @click="errorMessage = ''"
+        >
+          &times;
+        </button>
       </div>
     </div>
   </main>
@@ -273,9 +280,8 @@ input[type='password'] {
 
 /* Alert Box */
 .minecraft-alert-box {
-  display: none;
-  position: fixed;
-  transform: translateX(-57%);
+  display: block;
+  position: relative;
   background: rgba(0, 0, 0, 0.8);
   color: #ffcc00;
   border: 2px solid #ff7a00;
@@ -286,9 +292,10 @@ input[type='password'] {
   font-family: 'Press Start 2P', monospace;
   width: 320px;
   box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
-  bottom: 50px;
   margin-left: 15%;
-  height: 10%;
+  height: 35%;
+  right: 15%;
+  top: 10%;
 }
 
 /* Bouton pour fermer l'alert box */
