@@ -1,7 +1,10 @@
 <template>
   <main class="login-vm-main">
     <video class="login-bg-video" autoplay loop muted>
-      <source src="../../assets/media/bg-login-vm.mp4" type="video/mp4" />
+      <source
+        src="https://incraft-api.kashir.fr/launcher-assets/bg-login-vm.mp4"
+        type="video/mp4"
+      />
     </video>
     <div class="login-vm-container">
       <form class="login-vm-form" @submit.prevent="handleLogin">

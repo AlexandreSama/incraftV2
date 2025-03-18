@@ -10,7 +10,10 @@
         @click="goToMinecraft"
       >
         <video class="panel-video" autoplay loop muted>
-          <source src="../assets/media/bg-welcome-mc.mp4" type="video/mp4" />
+          <source
+            src="https://incraft-api.kashir.fr/launcher-assets/bg-welcome-mc.mp4"
+            type="video/mp4"
+          />
         </video>
         <div class="panel-content-left">
           <h3>Incraft MC</h3>
@@ -26,7 +29,10 @@
         @click="goToVM"
       >
         <video class="panel-video" autoplay loop muted>
-          <source src="../assets/media/bg-welcome-vm.mp4" type="video/mp4" />
+          <source
+            src="https://incraft-api.kashir.fr/launcher-assets/bg-welcome-vm.mp4"
+            type="video/mp4"
+          />
         </video>
         <div class="panel-content-right">
           <h3>Incraft VM</h3>
