@@ -9,14 +9,28 @@
         <div v-if="error" class="login-vm-error">{{ error }}</div>
         <div class="login-vm-group">
           <label for="email" class="login-vm-label">Email</label>
-          <input class="login-vm-input" id="email" type="text" placeholder="Email" v-model="username" />
+          <input
+            id="email"
+            v-model="username"
+            class="login-vm-input"
+            type="text"
+            placeholder="Email"
+          />
         </div>
         <div class="login-vm-group">
           <label for="password" class="login-vm-label">Mot de passe</label>
-          <input class="login-vm-input" id="password" type="password" placeholder="Mot de passe" v-model="password" />
+          <input
+            id="password"
+            v-model="password"
+            class="login-vm-input"
+            type="password"
+            placeholder="Mot de passe"
+          />
         </div>
         <button type="submit" class="login-vm-login-button">Connexion</button>
-        <button type="submit" class="login-vm-returnToAccueil-button" @click="returnToAccueil">Retour a l'accueil</button>
+        <button type="submit" class="login-vm-returnToAccueil-button" @click="returnToAccueil">
+          Retour a l'accueil
+        </button>
       </form>
     </div>
   </main>
@@ -34,7 +48,7 @@ const router = useRouter()
 
 function handleLogin() {
   if (username.value === '' || password.value === '') {
-    error.value = "Veuillez remplir tous les champs."
+    error.value = 'Veuillez remplir tous les champs.'
     return
   }
   if (username.value !== 'admin' || password.value !== '1234') {
@@ -163,17 +177,18 @@ function returnToAccueil() {
 
 /* Keyframes pour l'animation des inputs */
 @keyframes inputBounce {
-  0%, 50% {
+  0%,
+  50% {
     transform: translateY(0);
   }
   55% {
     transform: translateY(-10px);
   }
-  60%, 100% {
+  60%,
+  100% {
     transform: translateY(0);
   }
 }
-
 
 /* Bouton de connexion */
 .login-vm-login-button {
@@ -192,7 +207,7 @@ function returnToAccueil() {
   margin-bottom: 15px;
 }
 
-.login-vm-returnToAccueil-button{
+.login-vm-returnToAccueil-button {
   width: 100%;
   padding: 12px;
   font-size: 1rem;
@@ -212,7 +227,7 @@ function returnToAccueil() {
   background: #0088cc;
 }
 
-.login-vm-returnToAccueil-button:hover{
+.login-vm-returnToAccueil-button:hover {
   background: #1f5d37;
 }
 </style>

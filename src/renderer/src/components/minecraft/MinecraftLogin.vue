@@ -110,7 +110,7 @@ onMounted(() => {
           href="https://account.live.com/ResetPassword.aspx"
           class="lost-password-link"
           target="_blank"
-        >J'ai perdu mon mot de passe</a
+          >J'ai perdu mon mot de passe</a
         >
       </form>
       <!-- Alerte de connexion en erreur : affichée si errorMessage contient une valeur -->

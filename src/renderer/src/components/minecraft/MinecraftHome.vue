@@ -100,7 +100,7 @@ window.electronAPI.onDownloadProgress((data) => {
   progress.value = data.percentage
   // Si aucun message de type "dataDownload" n'est envoyé, on affiche le pourcentage
   if (progress.value < 100) {
-    progressMessage.value = progress.value + '%'
+    progressMessage.value = data.file
   }
 })
 
@@ -113,6 +113,8 @@ window.electronAPI.onGameStopped(() => {
   progressMessage.value = ''
   progress.value = 0
 })
+
+window.electronAPI.onOpenLogsFolder(() => {})
 
 // Fonction asynchrone pour sélectionner un serveur et charger la RAM sauvegardée
 const selectServer = async (server) => {
@@ -130,17 +132,15 @@ const joinServer = async (server) => {
   progress.value = 0
   downloadComplete.value = false
   try {
-    const serverData = JSON.parse(JSON.stringify(server))
-    await window.electronAPI.startDownload(serverData)
-    downloadComplete.value = true
-    // Lorsque tout est terminé, on met à jour progressMessage
-    progressMessage.value = 'Téléchargement terminé ! Lancement du jeu...'
-    console.log('Tous les fichiers ont été téléchargés !')
     document.getElementById('join-server').style.pointerEvents = 'none'
     document.getElementById('param-server').style.pointerEvents = 'none'
     document.querySelectorAll('.server').forEach((e) => {
       e.style.pointerEvents = 'none'
     })
+    const serverData = JSON.parse(JSON.stringify(server))
+    await window.electronAPI.startDownload(serverData)
+    downloadComplete.value = true
+    progressMessage.value = 'Téléchargement des mods terminés...'
   } catch (error) {
     console.error('Erreur lors du téléchargement', error)
     document.getElementById('join-server').style.pointerEvents = 'auto'
@@ -165,11 +165,17 @@ const closeSettings = async () => {
 }
 
 const openLogs = () => {
-  console.log('Ouverture du dossier des logs...')
+  console.log('clicked')
+  if (selectedServer.value && selectedServer.value.name) {
+    window.electronAPI.openLogsFolder(selectedServer.value.name)
+  }
 }
 
 const openServerFolder = () => {
-  console.log('Ouverture du dossier du serveur...')
+  console.log('clicked')
+  if (selectedServer.value && selectedServer.value.name) {
+    window.electronAPI.openServerFolder(selectedServer.value.name)
+  }
 }
 
 async function fetchServers() {
