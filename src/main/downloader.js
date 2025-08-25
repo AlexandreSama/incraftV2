@@ -45,10 +45,14 @@ async function simpleDownload(url, outputPath, mainWindow) {
     fileName,
     onProgress: (percentage) => {
       // La valeur retournée est un pourcentage ; on l'arrondit et l'envoie à la fenêtre principale.
-      mainWindow.webContents.send('download-progress', { url, percentage: Math.floor(percentage) })
+      mainWindow.webContents.send('download-progress', {
+        file: fileName,
+        percentage: Math.floor(percentage)
+      })
     }
   })
 
+  // eslint-disable-next-line no-useless-catch
   try {
     // Le téléchargement renvoie un objet contenant filePath.
     await downloader.download()

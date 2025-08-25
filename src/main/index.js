@@ -3,6 +3,7 @@ import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import axios from 'axios'
 import { downloadFiles } from './downloader.js'
+import fs from 'fs'
 
 const { Client } = require('minecraft-launcher-core')
 const launcher = new Client()
@@ -117,7 +118,8 @@ ipcMain.on('minecraft-login', async (event, credentials) => {
     if (error.response && error.response.data) details = error.response.data
     event.reply('minecraft-login-response', {
       status: 'error',
-      message: 'Échec de l’authentification Minecraft via API. Vérifier votre mot de passe, votre email et que l\'authentification a double facteur soit désactivé',
+      message:
+        "Échec de l’authentification Minecraft via API. Vérifier votre mot de passe, votre email et que l'authentification a double facteur soit désactivé",
       details
     })
   }
@@ -136,6 +138,24 @@ ipcMain.handle('set-ram', async (event, serverId, value) => {
   const store = new Store()
   store.set(`ram_${serverId}`, value)
   return true
+})
+
+ipcMain.handle('open-server-folder', async (event, serverName) => {
+  let serverPath = join(app.getPath('appData'), 'Incraft-Launcher', serverName)
+  if (fs.existsSync(serverPath)) {
+    shell.openExternal(serverPath)
+  } else {
+    event.sender.send('cant-open-server-folder')
+  }
+})
+
+ipcMain.handle('open-logs-folder', async (event, serverName) => {
+  let logsPath = join(app.getPath('appData'), 'Incraft-Launcher', serverName, 'logs')
+  if (fs.existsSync(logsPath)) {
+    shell.openExternal(join(app.getPath('appData'), 'Incraft-Launcher', serverName, 'logs'))
+  } else {
+    event.sender.send('cant-open-logs-folder')
+  }
 })
 
 // --- IPC : Lancement du jeu ---
@@ -188,16 +208,10 @@ async function launchGame(event, server, serverId, serverName, serverJar) {
         max: `${ramUsage}G`,
         min: '8G'
       }
-      // overrides: {
-      //   fw: {
-      //     version: '1.6.0'
-      //   }
-      // }
     }
 
     // Lance Minecraft via minecraft-launcher-core
     launcher.launch(opts)
-    let i = 0
     launcher.on('close', (code) => {
       const errorMessage =
         code === 1 ? 'Fermé par l’utilisateur' : 'Le processus Minecraft a planté'
@@ -212,15 +226,21 @@ async function launchGame(event, server, serverId, serverName, serverJar) {
       console.log(`["Minecraft-Debug"] ${message}`)
     })
 
-    launcher.on('progress', (progress) => {
-      console.log(progress)
+    let progressCounters = {}
 
-      i++
+    launcher.on('progress', (progress) => {
+      // Si le compteur pour ce type n'existe pas, on l'initialise à 0
+      if (!progressCounters.hasOwnProperty(progress.type)) {
+        progressCounters[progress.type] = 0
+      }
+      // Incrémente le compteur pour ce type
+      progressCounters[progress.type]++
+
       event.sender.send('dataDownload', {
         type: progress.type,
         task: progress.task,
         total: progress.total,
-        current: i
+        current: progressCounters[progress.type]
       })
     })
 

@@ -60,10 +60,10 @@ onMounted(() => {
 <template>
   <main class="main-login">
     <video class="videoPlayer" muted loop autoplay>
-      <source src="../../assets/media/bg-loginMC.mp4" type="video/mp4" />
+      <source src="https://incraft-api.kashir.fr/launcher-assets/bg-loginMC.mp4" type="video/mp4" />
     </video>
     <audio id="audioPlayer" ref="audioPlayer" loop>
-      <source src="../../assets/media/bg-loginMC.mp3" type="audio/mp3" />
+      <source src="https://incraft-api.kashir.fr/launcher-assets/bg-loginMC.mp3" type="audio/mp3" />
     </audio>
     <div class="form-container">
       <h2 class="pixel-title">Se connecter avec Microsoft</h2>
@@ -110,7 +110,7 @@ onMounted(() => {
           href="https://account.live.com/ResetPassword.aspx"
           class="lost-password-link"
           target="_blank"
-        >J'ai perdu mon mot de passe</a
+          >J'ai perdu mon mot de passe</a
         >
       </form>
       <!-- Alerte de connexion en erreur : affichée si errorMessage contient une valeur -->

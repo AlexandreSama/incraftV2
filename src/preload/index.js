@@ -47,5 +47,17 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
   // Gestion de la configuration RAM par serveur via IPC
   getRam: (serverId) => ipcRenderer.invoke('get-ram', serverId),
-  setRam: (serverId, value) => ipcRenderer.invoke('set-ram', serverId, value)
+  setRam: (serverId, value) => ipcRenderer.invoke('set-ram', serverId, value),
+  openServerFolder: (serverName) => ipcRenderer.invoke('open-server-folder', serverName),
+  openLogsFolder: (serverName) => ipcRenderer.invoke('open-logs-folder', serverName),
+  onOpenLogsFolder: (callback) => {
+    ipcRenderer.on('cant-open-logs-folder', () => {
+      callback()
+    })
+  },
+  onOpenServerFolder: (callback) => {
+    ipcRenderer.on('cant-open-server-folder', () => {
+      callback()
+    })
+  }
 })
